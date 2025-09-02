@@ -2982,86 +2982,89 @@
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Get all videos on the page
             const videos = document.querySelectorAll('video');
+            
+            videos.forEach((video, index) => {
+                // Multiple attempts to ensure video plays
+                const attemptPlay = () => {
+                    const playPromise = video.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise
+                            .then(() => {
+                                console.log(`Video ${index + 1} started playing successfully`);
+                            })
+                            .catch(error => {
+                                console.log(`Video ${index + 1} autoplay prevented:`, error);
+                                // Will be handled by user interaction fallback
+                            });
+                    }
+                };
+                
+                // Try to play immediately
+                attemptPlay();
+                
+                // Try again when video is loaded
+                video.addEventListener('loadeddata', attemptPlay);
+                video.addEventListener('canplay', attemptPlay);
+                video.addEventListener('canplaythrough', attemptPlay);
+                
+                // Ensure video is ready for autoplay
+                if (video.readyState >= 2) {
+                    attemptPlay();
+                }
+            });
+            
+            // Fallback for mobile devices - play all videos on ANY user interaction
             let hasUserInteracted = false;
             
-            // Create intersection observer to play videos when visible
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    const video = entry.target;
-                    
-                    if (entry.isIntersecting) {
-                        // Video is visible, try to play
-                        const playPromise = video.play();
-                        if (playPromise !== undefined) {
-                            playPromise.catch(error => {
-                                console.log('Auto-play prevented, waiting for user interaction');
-                            });
-                        }
-                    } else {
-                        // Video is not visible, pause to save resources
-                        video.pause();
-                    }
-                });
-            }, {
-                threshold: 0.25, // Play when 25% of video is visible
-                rootMargin: '50px' // Start loading 50px before entering viewport
-            });
-            
-            // Observe all videos
-            videos.forEach(video => {
-                observer.observe(video);
-                
-                // Also try immediate play for videos already in viewport
-                video.addEventListener('loadedmetadata', () => {
-                    const rect = video.getBoundingClientRect();
-                    const isInViewport = (
-                        rect.top < window.innerHeight &&
-                        rect.bottom > 0 &&
-                        rect.left < window.innerWidth &&
-                        rect.right > 0
-                    );
-                    
-                    if (isInViewport) {
-                        video.play().catch(error => {
-                            console.log('Initial autoplay prevented');
-                        });
-                    }
-                });
-            });
-            
-            // Mobile/Desktop fallback - enable autoplay after first user interaction
             const enableAutoplayForAll = () => {
                 if (hasUserInteracted) return;
                 hasUserInteracted = true;
                 
-                videos.forEach(video => {
-                    const rect = video.getBoundingClientRect();
-                    const isInViewport = (
-                        rect.top < window.innerHeight &&
-                        rect.bottom > 0
-                    );
-                    
-                    // Only play videos that are currently visible
-                    if (isInViewport) {
-                        video.play().catch(error => {
-                            console.log('Could not play video after user interaction:', error);
+                console.log('User interacted - attempting to play all videos');
+                
+                videos.forEach((video, index) => {
+                    video.play()
+                        .then(() => {
+                            console.log(`Video ${index + 1} playing after user interaction`);
+                        })
+                        .catch(error => {
+                            console.log(`Video ${index + 1} still blocked:`, error);
                         });
-                    }
                 });
                 
-                // Remove listeners after first interaction
+                // Remove all listeners
                 document.removeEventListener('touchstart', enableAutoplayForAll);
+                document.removeEventListener('touchend', enableAutoplayForAll);
                 document.removeEventListener('click', enableAutoplayForAll);
+                document.removeEventListener('scroll', enableAutoplayForAll);
                 document.removeEventListener('keydown', enableAutoplayForAll);
             };
             
-            // Listen for various user interactions
+            // Listen for any user interaction
             document.addEventListener('touchstart', enableAutoplayForAll, { passive: true });
+            document.addEventListener('touchend', enableAutoplayForAll, { passive: true });
             document.addEventListener('click', enableAutoplayForAll, { passive: true });
+            document.addEventListener('scroll', enableAutoplayForAll, { passive: true, once: true });
             document.addEventListener('keydown', enableAutoplayForAll, { passive: true });
+            
+            // Also try on window load (sometimes helps)
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    videos.forEach(video => {
+                        video.play().catch(error => {
+                            console.log('Window load autoplay attempt failed:', error);
+                        });
+                    });
+                }, 100);
+            });
         });
     </script>
+
+            
+          
 
     
 </body>
