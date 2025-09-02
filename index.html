@@ -2980,6 +2980,89 @@
         }
 
     </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const videos = document.querySelectorAll('video');
+            let hasUserInteracted = false;
+            
+            // Create intersection observer to play videos when visible
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const video = entry.target;
+                    
+                    if (entry.isIntersecting) {
+                        // Video is visible, try to play
+                        const playPromise = video.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch(error => {
+                                console.log('Auto-play prevented, waiting for user interaction');
+                            });
+                        }
+                    } else {
+                        // Video is not visible, pause to save resources
+                        video.pause();
+                    }
+                });
+            }, {
+                threshold: 0.25, // Play when 25% of video is visible
+                rootMargin: '50px' // Start loading 50px before entering viewport
+            });
+            
+            // Observe all videos
+            videos.forEach(video => {
+                observer.observe(video);
+                
+                // Also try immediate play for videos already in viewport
+                video.addEventListener('loadedmetadata', () => {
+                    const rect = video.getBoundingClientRect();
+                    const isInViewport = (
+                        rect.top < window.innerHeight &&
+                        rect.bottom > 0 &&
+                        rect.left < window.innerWidth &&
+                        rect.right > 0
+                    );
+                    
+                    if (isInViewport) {
+                        video.play().catch(error => {
+                            console.log('Initial autoplay prevented');
+                        });
+                    }
+                });
+            });
+            
+            // Mobile/Desktop fallback - enable autoplay after first user interaction
+            const enableAutoplayForAll = () => {
+                if (hasUserInteracted) return;
+                hasUserInteracted = true;
+                
+                videos.forEach(video => {
+                    const rect = video.getBoundingClientRect();
+                    const isInViewport = (
+                        rect.top < window.innerHeight &&
+                        rect.bottom > 0
+                    );
+                    
+                    // Only play videos that are currently visible
+                    if (isInViewport) {
+                        video.play().catch(error => {
+                            console.log('Could not play video after user interaction:', error);
+                        });
+                    }
+                });
+                
+                // Remove listeners after first interaction
+                document.removeEventListener('touchstart', enableAutoplayForAll);
+                document.removeEventListener('click', enableAutoplayForAll);
+                document.removeEventListener('keydown', enableAutoplayForAll);
+            };
+            
+            // Listen for various user interactions
+            document.addEventListener('touchstart', enableAutoplayForAll, { passive: true });
+            document.addEventListener('click', enableAutoplayForAll, { passive: true });
+            document.addEventListener('keydown', enableAutoplayForAll, { passive: true });
+        });
+    </script>
+
     
 </body>
 </html>
