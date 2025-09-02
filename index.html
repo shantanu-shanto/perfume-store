@@ -210,18 +210,10 @@
             width: 100%;
             height: 100%;
             z-index: -1;
-            opacity: 0;
-            animation: fadeInVideo 3.5s ease-in-out forwards;
+            opacity: 1;
+            
         }
 
-        @keyframes fadeInVideo {
-            0% {
-                opacity: 0;
-            }
-            100% {
-                opacity: 1;
-            }
-        }
 
         .video-background::after {
             content: '';
@@ -232,7 +224,7 @@
             height: 100%;
             background: rgba(80, 71, 71, 0);
             animation: fadeInOverlay 2s forwards;
-            animation-delay: 3.5s;
+            animation-delay: 1s;
         }
 
         @keyframes fadeInOverlay {
