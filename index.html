@@ -2973,143 +2973,94 @@
         }
 
     </script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const videos = document.querySelectorAll('video');
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const videos = document.querySelectorAll('video');
+    
+    // Force play function with multiple attempts
+    const forcePlay = (video, index) => {
+        const maxAttempts = 5;
+        let attempts = 0;
+        
+        const tryPlay = () => {
+            attempts++;
+            console.log(`Attempting to play video ${index + 1}, attempt ${attempts}`);
             
-            // Force play function with multiple attempts
-            const forcePlay = (video, index) => {
-                const maxAttempts = 5;
-                let attempts = 0;
-                
-                // Get video identifier for better debugging
-                const videoId = video.id || `video-${index + 1}`;
-                const videoSrc = video.querySelector('source')?.src || 'unknown';
-                const videoSection = video.closest('section')?.id || 'unknown-section';
-                
-                const tryPlay = () => {
-                    attempts++;
-                    console.log(`🎬 Attempting to play ${videoId} in ${videoSection} (${videoSrc}), attempt ${attempts}`);
-                    
-                    // Ensure ALL videos are properly configured for autoplay
-                    video.muted = true;
-                    video.playsInline = true;
-                    video.setAttribute('playsinline', '');
-                    video.setAttribute('webkit-playsinline', '');
-                    
-                    const playPromise = video.play();
-                    
-                    if (playPromise !== undefined) {
-                        playPromise
-                            .then(() => {
-                                console.log(`✅ ${videoId} in ${videoSection} playing successfully!`);
-                            })
-                            .catch(error => {
-                                console.log(`❌ ${videoId} in ${videoSection} blocked, attempt ${attempts}:`, error.message);
-                                
-                                // Special handling for different video types
-                                if (videoId === 'heroVideo' || video.closest('.video-background')) {
-                                    console.log(`🎯 Hero video detected - applying special fixes`);
-                                    video.removeAttribute('autoplay');
-                                    setTimeout(() => {
-                                        video.setAttribute('autoplay', '');
-                                        video.load();
-                                    }, 100);
-                                }
-                                
-                                // Retry after a short delay
-                                if (attempts < maxAttempts) {
-                                    setTimeout(tryPlay, 200 * attempts);
-                                }
-                            });
-                    }
-                };
-                
-                // Start trying immediately
-                tryPlay();
-                
-                // Also try when video events fire
-                video.addEventListener('loadedmetadata', tryPlay);
-                video.addEventListener('loadeddata', tryPlay);
-                video.addEventListener('canplay', tryPlay);
-                
-                // Special handling for hero video
-                if (videoId === 'heroVideo' || video.closest('.video-background')) {
-                    video.addEventListener('loadstart', () => {
-                        console.log(`🎬 Hero video started loading`);
-                        setTimeout(tryPlay, 500);
-                    });
-                }
-            };
+            const playPromise = video.play();
             
-            // Apply to ALL videos (hero, services, testimonials)
-            videos.forEach((video, index) => {
-                forcePlay(video, index);
-            });
-            
-            // User interaction fallback for ALL videos
-            let interactionHandled = false;
-            
-            const handleUserInteraction = (eventType) => {
-                if (interactionHandled) return;
-                interactionHandled = true;
-                
-                console.log(`👆 User interaction detected (${eventType}) - playing ALL videos`);
-                
-                videos.forEach((video, index) => {
-                    const videoId = video.id || `video-${index + 1}`;
-                    const videoSection = video.closest('section')?.id || 'unknown-section';
-                    
-                    video.play()
-                        .then(() => console.log(`✅ ${videoId} in ${videoSection} playing after ${eventType}`))
-                        .catch(error => console.log(`❌ ${videoId} in ${videoSection} still blocked after ${eventType}`));
-                });
-                
-                // Clean up listeners
-                ['touchstart', 'click', 'scroll', 'keydown', 'mousemove'].forEach(event => {
-                    document.removeEventListener(event, () => handleUserInteraction(event));
-                });
-            };
-            
-            // Listen for various user interactions
-            ['touchstart', 'click', 'scroll', 'keydown', 'mousemove'].forEach(event => {
-                document.addEventListener(event, () => handleUserInteraction(event), { 
-                    passive: true, 
-                    once: true 
-                });
-            });
-            
-            // Additional attempts with delays for ALL videos
-            [500, 1000, 2000].forEach(delay => {
-                setTimeout(() => {
-                    videos.forEach((video, index) => {
-                        if (video.paused) {
-                            const videoId = video.id || `video-${index + 1}`;
-                            const videoSection = video.closest('section')?.id || 'unknown-section';
-                            console.log(`⏰ Delayed attempt for ${videoId} in ${videoSection} after ${delay}ms`);
-                            video.play().catch(() => {});
+            if (playPromise !== undefined) {
+                playPromise
+                    .then(() => {
+                        console.log(`✓ Video ${index + 1} playing successfully`);
+                    })
+                    .catch(error => {
+                        console.log(`✗ Video ${index + 1} blocked, attempt ${attempts}:`, error.message);
+                        
+                        // Retry after a short delay
+                        if (attempts < maxAttempts) {
+                            setTimeout(tryPlay, 200 * attempts);
                         }
                     });
-                }, delay);
-            });
-            
-            // Final attempt for any paused videos
-            setTimeout(() => {
-                videos.forEach((video, index) => {
-                    if (video.paused) {
-                        const videoId = video.id || `video-${index + 1}`;
-                        const videoSection = video.closest('section')?.id || 'unknown-section';
-                        console.log(`🎯 Final attempt for ${videoId} in ${videoSection}`);
-                        video.currentTime = 0;
-                        video.play().catch(error => {
-                            console.log(`🚫 ${videoId} final attempt failed:`, error);
-                        });
-                    }
-                });
-            }, 3000);
+            }
+        };
+        
+        // Start trying immediately
+        tryPlay();
+        
+        // Also try when video events fire
+        video.addEventListener('loadedmetadata', tryPlay);
+        video.addEventListener('loadeddata', tryPlay);
+        video.addEventListener('canplay', tryPlay);
+    };
+    
+    // Apply to all videos
+    videos.forEach((video, index) => {
+        forcePlay(video, index);
+    });
+    
+    // User interaction fallback
+    let interactionHandled = false;
+    
+    const handleUserInteraction = (eventType) => {
+        if (interactionHandled) return;
+        interactionHandled = true;
+        
+        console.log(`User interaction detected (${eventType}) - playing all videos`);
+        
+        videos.forEach((video, index) => {
+            video.play()
+                .then(() => console.log(`✓ Video ${index + 1} playing after ${eventType}`))
+                .catch(error => console.log(`✗ Video ${index + 1} still blocked after ${eventType}`));
         });
-    </script>
+        
+        // Clean up listeners
+        ['touchstart', 'click', 'scroll', 'keydown', 'mousemove'].forEach(event => {
+            document.removeEventListener(event, () => handleUserInteraction(event));
+        });
+    };
+    
+    // Listen for various user interactions
+    ['touchstart', 'click', 'scroll', 'keydown', 'mousemove'].forEach(event => {
+        document.addEventListener(event, () => handleUserInteraction(event), { 
+            passive: true, 
+            once: true 
+        });
+    });
+    
+    // Additional attempts with delays
+    [500, 1000, 2000].forEach(delay => {
+        setTimeout(() => {
+            videos.forEach((video, index) => {
+                if (video.paused) {
+                    console.log(`Delayed attempt for video ${index + 1} after ${delay}ms`);
+                    video.play().catch(() => {});
+                }
+            });
+        }, delay);
+    });
+});
+</script>
+
 
     
 </body>
