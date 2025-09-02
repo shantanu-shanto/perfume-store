@@ -2977,90 +2977,64 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const videos = document.querySelectorAll('video');
+            const heroVideo = document.querySelector('.hero video');
+            const allVideos = document.querySelectorAll('video');
             
-            // Force play function with multiple attempts
-            const forcePlay = (video, index) => {
-                const maxAttempts = 5;
-                let attempts = 0;
-                
-                const tryPlay = () => {
-                    attempts++;
-                    console.log(`Attempting to play video ${index + 1}, attempt ${attempts}`);
-                    
-                    const playPromise = video.play();
-                    
+            // iOS-specific hero video handling
+            const playHeroVideo = () => {
+                if (heroVideo && heroVideo.paused) {
+                    const playPromise = heroVideo.play();
                     if (playPromise !== undefined) {
                         playPromise
                             .then(() => {
-                                console.log(`✓ Video ${index + 1} playing successfully`);
+                                console.log('Hero video playing successfully');
                             })
                             .catch(error => {
-                                console.log(`✗ Video ${index + 1} blocked, attempt ${attempts}:`, error.message);
-                                
-                                // Retry after a short delay
-                                if (attempts < maxAttempts) {
-                                    setTimeout(tryPlay, 200 * attempts);
-                                }
+                                console.log('Hero video autoplay blocked:', error);
+                                // Fallback: show play button or poster
+                                heroVideo.controls = true;
                             });
                     }
-                };
-                
-                // Start trying immediately
-                tryPlay();
-                
-                // Also try when video events fire
-                video.addEventListener('loadedmetadata', tryPlay);
-                video.addEventListener('loadeddata', tryPlay);
-                video.addEventListener('canplay', tryPlay);
+                }
             };
             
-            // Apply to all videos
-            videos.forEach((video, index) => {
-                forcePlay(video, index);
+            // Multiple trigger points for iOS
+            const triggers = ['touchstart', 'click', 'scroll'];
+            let triggered = false;
+            
+            triggers.forEach(event => {
+                document.addEventListener(event, () => {
+                    if (!triggered) {
+                        triggered = true;
+                        playHeroVideo();
+                        
+                        // Also ensure other videos continue playing
+                        allVideos.forEach(video => {
+                            if (video.paused) {
+                                video.play().catch(() => {});
+                            }
+                        });
+                    }
+                }, { once: true, passive: true });
             });
             
-            // User interaction fallback
-            let interactionHandled = false;
+            // Immediate attempt
+            playHeroVideo();
             
-            const handleUserInteraction = (eventType) => {
-                if (interactionHandled) return;
-                interactionHandled = true;
-                
-                console.log(`User interaction detected (${eventType}) - playing all videos`);
-                
-                videos.forEach((video, index) => {
-                    video.play()
-                        .then(() => console.log(`✓ Video ${index + 1} playing after ${eventType}`))
-                        .catch(error => console.log(`✗ Video ${index + 1} still blocked after ${eventType}`));
+            // Intersection Observer for hero section
+            const heroObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !triggered) {
+                        playHeroVideo();
+                    }
                 });
-                
-                // Clean up listeners
-                ['touchstart', 'click', 'scroll', 'keydown', 'mousemove'].forEach(event => {
-                    document.removeEventListener(event, () => handleUserInteraction(event));
-                });
-            };
+            }, { threshold: 0.1 });
             
-            // Listen for various user interactions
-            ['touchstart', 'click', 'scroll', 'keydown', 'mousemove'].forEach(event => {
-                document.addEventListener(event, () => handleUserInteraction(event), { 
-                    passive: true, 
-                    once: true 
-                });
-            });
-            
-            // Additional attempts with delays
-            [500, 1000, 2000].forEach(delay => {
-                setTimeout(() => {
-                    videos.forEach((video, index) => {
-                        if (video.paused) {
-                            console.log(`Delayed attempt for video ${index + 1} after ${delay}ms`);
-                            video.play().catch(() => {});
-                        }
-                    });
-                }, delay);
-            });
+            if (heroVideo) {
+                heroObserver.observe(heroVideo.closest('.hero'));
+            }
         });
+
     </script>
 
 
