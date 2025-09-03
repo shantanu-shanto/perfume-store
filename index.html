@@ -2943,163 +2943,127 @@
     </script>
 
     <script>
-         
-
-        
         (function () {
-        const isIOS = /iP(hone|od|ad)/.test(navigator.platform) || 
-                        (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
-        // Select only the videos inside the provided sections
-        const videos = Array.from(document.querySelectorAll(`
+        const selector = `
             .hero-container video,
             .services .video-circle video,
             .review .video-container video
-        `));
+        `;
 
-        // Ensure required attributes for iOS inline autoplay
-        function primeAttributes(v) {
-            v.setAttribute('playsinline', '');
-            v.setAttribute('webkit-playsinline', '');
-            v.setAttribute('muted', '');
-            v.muted = true;
-            v.loop = true;
-            // Avoid unexpected full preloads on cellular; metadata is usually safe for iOS
-            if (!v.getAttribute('preload')) v.setAttribute('preload', 'metadata');
-        }
-
-        // Attempt to play and swallow errors; returns resolved boolean
-        async function tryPlay(v) {
+        function prepareVideo(el) {
             try {
-            const p = v.play();
+            // Required attributes for iOS Safari inline autoplay
+            el.setAttribute('muted', '');
+            el.muted = true;
+            el.defaultMuted = true;
+
+            el.setAttribute('playsinline', '');
+            el.setAttribute('webkit-playsinline', ''); // legacy iOS support
+
+            el.setAttribute('autoplay', '');
+            el.autoplay = true;
+
+            // Helpful defaults
+            if (!el.hasAttribute('loop')) el.setAttribute('loop', '');
+            if (!el.hasAttribute('preload')) el.setAttribute('preload', 'metadata');
+
+            // Ensure no audio is effectively output
+            el.volume = 0;
+
+            // If the element ever becomes unmuted without gesture, iOS will pause it.
+            // Keep it muted proactively.
+            el.addEventListener('volumechange', () => {
+                if (!el.muted) {
+                el.muted = true;
+                el.volume = 0;
+                }
+            }, { passive: true });
+            } catch (_) {}
+        }
+
+        function tryPlay(el) {
+            if (!el) return;
+            // Only try when visible (helps with Safari policy and power saving)
+            if (!isElementInViewport(el)) return;
+
+            // Ensure attributes are in correct state each attempt
+            if (!el.muted) el.muted = true;
+            if (!el.hasAttribute('playsinline')) el.setAttribute('playsinline', '');
+            if (!el.hasAttribute('webkit-playsinline')) el.setAttribute('webkit-playsinline', '');
+            if (!el.autoplay) el.autoplay = true;
+
+            const p = el.play();
             if (p && typeof p.then === 'function') {
-                await p;
-            }
-            return true;
-            } catch (err) {
-            // Autoplay may be blocked (e.g., Low Power Mode), or codec/track issues
-            return false;
-            }
-        }
-
-        // Retry strategy for stubborn cases
-        async function autoplayWithRetries(v, {attempts = 3, delay = 300} = {}) {
-            for (let i = 0; i < attempts; i++) {
-            const ok = await tryPlay(v);
-            if (ok) return true;
-            await new Promise(r => setTimeout(r, delay));
-            // Nudge currentTime to break "black first frame" on iOS
-            try { if (v.readyState >= 1 && v.currentTime === 0) v.currentTime = 0.001; } catch {}
-            }
-            return false;
-        }
-
-        // Only attempt autoplay when visible in viewport (per WebKit policy)
-        const observer = ('IntersectionObserver' in window) ? new IntersectionObserver((entries) => {
-            for (const entry of entries) {
-            const v = entry.target;
-            if (entry.isIntersecting) {
-                autoplayWithRetries(v, {attempts: 2, delay: 200});
-            } else {
-                // Pause when off-screen as iOS may pause anyway; keeps state tidy
-                v.pause();
-            }
-            }
-        }, { threshold: 0.25 }) : null;
-
-        // Visibilitychange attempt: iOS starts autoplay when page becomes visible
-        function onVisibilityChange() {
-            if (document.visibilityState === 'visible') {
-            videos.forEach(v => autoplayWithRetries(v, {attempts: 2, delay: 200}));
-            }
-        }
-
-        // One-time user gesture to unlock audio, if desired later
-        let unlocked = false;
-        function unlockOnGesture() {
-            if (unlocked) return;
-            unlocked = true;
-            // Keep videos muted for autoplay reliability; developers can unmute selectively below
-            videos.forEach(v => {
-            // If a specific video should get audio after gesture, unmute here:
-            // Example: only hero video with audio track:
-            // if (v.closest('.hero-container')) { v.muted = false; v.removeAttribute('muted'); tryPlay(v); }
+            p.catch(() => {
+                // Will retry on next observer tick or user gesture
             });
-            // Remove listeners after unlocking
-            ['click','pointerup','mouseup','keydown','touchend'].forEach(evt =>
-            window.removeEventListener(evt, unlockOnGesture, true)
-            );
+            }
         }
 
-        function bindGestureUnlock() {
-            // Use events recognized as valid user gestures for iOS
-            ['click','pointerup','mouseup','keydown','touchend'].forEach(evt =>
-            window.addEventListener(evt, unlockOnGesture, true)
-            );
+        function isElementInViewport(el) {
+            const rect = el.getBoundingClientRect();
+            const vw = (window.innerWidth || document.documentElement.clientWidth);
+            const vh = (window.innerHeight || document.documentElement.clientHeight);
+            return rect.bottom > 0 && rect.right > 0 && rect.top < vh && rect.left < vw;
         }
 
-        // Handle potential Low Power Mode or strict blocks with periodic nudge
-        let nudgeTimer = null;
-        function startNudger() {
-            // Light nudge that tries to play every few seconds without hammering CPU
-            if (nudgeTimer) return;
-            nudgeTimer = setInterval(() => {
-            if (document.visibilityState !== 'visible') return;
-            videos.forEach(v => {
-                if (v.paused && !v.seeking && !v.ended) {
-                tryPlay(v);
+        function init() {
+            const videos = Array.from(document.querySelectorAll(selector));
+            if (!videos.length) return;
+
+            videos.forEach(prepareVideo);
+
+            // Intersection-based start/stop aligned with Safari behavior
+            const io = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const video = entry.target;
+                if (entry.isIntersecting) {
+                tryPlay(video);
+                } else {
+                // Pause when scrolled out
+                video.pause();
                 }
             });
-            }, 4000);
-        }
+            }, { threshold: 0.1 });
 
-        function initVideo(v) {
-            primeAttributes(v);
+            videos.forEach(v => io.observe(v));
 
-            // iOS/Safari specifics: MP4 must be H.264/AAC; if codec wrong, canvas remains black
-            // If persistent failure, consider encoding without audio track for more reliable autoplay.
+            // Initial attempt once DOM is ready and visible
+            requestAnimationFrame(() => videos.forEach(tryPlay));
 
-            if (observer) observer.observe(v);
+            // Resume attempts on visibility change (e.g., tab foregrounded)
+            document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                videos.forEach(tryPlay);
+            } else {
+                videos.forEach(v => v.pause());
+            }
+            });
 
-            // Attempt immediate autoplay if already in view
-            autoplayWithRetries(v, {attempts: 2, delay: 200});
+            // One-time user gesture fallback (covers user setting “autoplay off” or low power mode)
+            const userKick = () => {
+            videos.forEach(tryPlay);
+            window.removeEventListener('touchend', userKick);
+            window.removeEventListener('click', userKick);
+            window.removeEventListener('keydown', userKick);
+            window.removeEventListener('scroll', userKick);
+            };
+            window.addEventListener('touchend', userKick, { passive: true, once: false });
+            window.addEventListener('click', userKick, { passive: true, once: false });
+            window.addEventListener('keydown', userKick, { passive: true, once: false });
+            window.addEventListener('scroll', userKick, { passive: true, once: false });
 
-            // If the first frame is black on iOS, advance a tiny bit when metadata is ready
-            v.addEventListener('loadedmetadata', () => {
-            try {
-                if (v.currentTime === 0) v.currentTime = 0.001;
-            } catch {}
-            }, { passive: true });
-        }
-
-        function boot() {
-            videos.forEach(initVideo);
-            document.addEventListener('visibilitychange', onVisibilityChange, { passive: true });
-            bindGestureUnlock();
-            startNudger();
+            // If a source is swapped later, re-prepare and retry
+            videos.forEach(v => {
+            v.addEventListener('loadeddata', () => tryPlay(v), { passive: true });
+            });
         }
 
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', boot, { once: true });
+            document.addEventListener('DOMContentLoaded', init, { once: true });
         } else {
-            boot();
+            init();
         }
-
-        // Optional: expose a helper to unmute a specific video later
-        window.enableVideoAudio = async function(selector) {
-            const v = document.querySelector(selector);
-            if (!v) return false;
-            v.muted = false;
-            v.removeAttribute('muted');
-            const ok = await tryPlay(v);
-            if (!ok) {
-            // If rejected, restore muted for policy compliance
-            v.muted = true;
-            v.setAttribute('muted', '');
-            }
-            return ok;
-        };
         })();
     </script>
 
