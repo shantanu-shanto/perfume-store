@@ -203,7 +203,7 @@
             align-items: center;
             padding: 0 5%;
         }
-        
+
         .video-background {
             position: absolute;
             top: 0;
@@ -212,7 +212,7 @@
             height: 100%;
             z-index: -1; /* Ensures video stays behind content */
         }
-        
+
         .video-background::after {
             content: '';
             position: absolute;
@@ -222,34 +222,26 @@
             height: 100%;
             background: rgba(80, 71, 71, 0);
             animation: fadeInOverlay 2s forwards;
-            animation-delay: 2s;
+            animation-delay: 4s;
             z-index: 1; /* Overlay above video but below text */
         }
-        
+
         @keyframes fadeInOverlay {
             0% { background: rgba(80, 71, 71, 0); }
             100% { background: rgba(80, 71, 71, 0.6); }
         }
-        
+
         .video-background video {
             width: 100%;
             height: 100%;
             object-fit: cover;
             object-position: center;
             display: block; /* Ensures proper rendering */
-            z-index: 0; /* Video at base level */
+            
         }
+
         
-        /* Center container for hero - only container now */
-        .hero-container .content-container {
-            color: white;
-            position: relative;
-            padding: 20px;
-            border-radius: 10px;
-            backdrop-filter: blur(5px);
-            text-align: center;
-        }
-        
+
         /* Hero container with CSS animation */
         .hero-container {
             max-width: 800px;
@@ -264,7 +256,7 @@
             z-index: 2; /* Text content above everything */
             position: relative;
         }
-        
+
         @keyframes fadeInFromBottom {
             0% {
                 opacity: 0;
@@ -275,7 +267,7 @@
                 transform: translateY(0);
             }
         }
-        
+
         .hero-container h1 {
             color: #ffffff;
             font-size: 3rem;
@@ -284,7 +276,7 @@
             line-height: 1.2;
             text-align: center;
         }
-        
+
         .hero-container p {
             color: #ffffff;
             font-size: 1rem;
@@ -292,14 +284,14 @@
             line-height: 1.6;
             text-align: center;
         }
-        
+
         .hero-btns {
             display: flex;
             gap: 15px;
             flex-wrap: wrap;
             justify-content: center;
         }
-        
+
         .btn {
             display: inline-block;
             padding: 12px 28px;
@@ -311,22 +303,22 @@
             transition: all 0.3s ease;
             font-size: clamp(0.9rem, 2vw, 1rem);
         }
-        
+
         .btn:hover {
             background: var(--accent-dark);
             transform: translateY(-3px);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
         }
-        
+
         .btn-outline {
             background: transparent;
             border: 2px solid #ffffff;
         }
-        
+
         .btn-outline:hover {
             background: rgba(255, 255, 255, 0.1);
         }
-        
+
         /* Mobile styles */
         @media (max-width: 768px) {
             .hero {
@@ -334,7 +326,7 @@
                 height: auto;
                 min-height: 100vh;
             }
-        
+
             .hero-container {
                 width: 100%;
                 margin: 0;
@@ -354,7 +346,7 @@
                 text-align: center;
             }
         }
-        
+
         /* Small mobile styles */
         @media (max-width: 480px) {
             .hero {
