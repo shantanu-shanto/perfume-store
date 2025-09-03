@@ -2970,67 +2970,7 @@
 
     </script>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const heroVideo = document.querySelector('.hero video');
-            const allVideos = document.querySelectorAll('video');
-            
-            // iOS-specific hero video handling
-            const playHeroVideo = () => {
-                if (heroVideo && heroVideo.paused) {
-                    const playPromise = heroVideo.play();
-                    if (playPromise !== undefined) {
-                        playPromise
-                            .then(() => {
-                                console.log('Hero video playing successfully');
-                            })
-                            .catch(error => {
-                                console.log('Hero video autoplay blocked:', error);
-                                // Fallback: show play button or poster
-                                heroVideo.controls = true;
-                            });
-                    }
-                }
-            };
-            
-            // Multiple trigger points for iOS
-            const triggers = ['touchstart', 'click', 'scroll'];
-            let triggered = false;
-            
-            triggers.forEach(event => {
-                document.addEventListener(event, () => {
-                    if (!triggered) {
-                        triggered = true;
-                        playHeroVideo();
-                        
-                        // Also ensure other videos continue playing
-                        allVideos.forEach(video => {
-                            if (video.paused) {
-                                video.play().catch(() => {});
-                            }
-                        });
-                    }
-                }, { once: true, passive: true });
-            });
-            
-            // Immediate attempt
-            playHeroVideo();
-            
-            // Intersection Observer for hero section
-            const heroObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting && !triggered) {
-                        playHeroVideo();
-                    }
-                });
-            }, { threshold: 0.1 });
-            
-            if (heroVideo) {
-                heroObserver.observe(heroVideo.closest('.hero'));
-            }
-        });
-
-    </script>
+   
 
 
     
