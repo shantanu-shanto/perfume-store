@@ -2943,128 +2943,214 @@
     </script>
 
     <script>
-        (function () {
-        const selector = `
-            .hero-container video,
-            .services .video-circle video,
-            .review .video-container video
-        `;
-
-        function prepareVideo(el) {
-            try {
-            // Required attributes for iOS Safari inline autoplay
-            el.setAttribute('muted', '');
-            el.muted = true;
-            el.defaultMuted = true;
-
-            el.setAttribute('playsinline', '');
-            el.setAttribute('webkit-playsinline', ''); // legacy iOS support
-
-            el.setAttribute('autoplay', '');
-            el.autoplay = true;
-
-            // Helpful defaults
-            if (!el.hasAttribute('loop')) el.setAttribute('loop', '');
-            if (!el.hasAttribute('preload')) el.setAttribute('preload', 'metadata');
-
-            // Ensure no audio is effectively output
-            el.volume = 0;
-
-            // If the element ever becomes unmuted without gesture, iOS will pause it.
-            // Keep it muted proactively.
-            el.addEventListener('volumechange', () => {
-                if (!el.muted) {
-                el.muted = true;
-                el.volume = 0;
-                }
-            }, { passive: true });
-            } catch (_) {}
-        }
-
-        function tryPlay(el) {
-            if (!el) return;
-            // Only try when visible (helps with Safari policy and power saving)
-            if (!isElementInViewport(el)) return;
-
-            // Ensure attributes are in correct state each attempt
-            if (!el.muted) el.muted = true;
-            if (!el.hasAttribute('playsinline')) el.setAttribute('playsinline', '');
-            if (!el.hasAttribute('webkit-playsinline')) el.setAttribute('webkit-playsinline', '');
-            if (!el.autoplay) el.autoplay = true;
-
-            const p = el.play();
-            if (p && typeof p.then === 'function') {
-            p.catch(() => {
-                // Will retry on next observer tick or user gesture
-            });
+        // iOS Safari Video Autoplay Handler
+        (function() {
+            'use strict';
+            
+            // Detect iOS devices
+            function isIOSDevice() {
+                return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
             }
-        }
-
-        function isElementInViewport(el) {
-            const rect = el.getBoundingClientRect();
-            const vw = (window.innerWidth || document.documentElement.clientWidth);
-            const vh = (window.innerHeight || document.documentElement.clientHeight);
-            return rect.bottom > 0 && rect.right > 0 && rect.top < vh && rect.left < vw;
-        }
-
-        function init() {
-            const videos = Array.from(document.querySelectorAll(selector));
-            if (!videos.length) return;
-
-            videos.forEach(prepareVideo);
-
-            // Intersection-based start/stop aligned with Safari behavior
-            const io = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                const video = entry.target;
-                if (entry.isIntersecting) {
-                tryPlay(video);
+            
+            // Detect Safari browser
+            function isSafari() {
+                return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+            }
+            
+            // Check if device is iOS Safari
+            const isIOSSafari = isIOSDevice() && isSafari();
+            
+            // Function to attempt video play
+            async function playVideo(video) {
+                try {
+                    // Ensure video is properly configured for iOS
+                    video.muted = true;
+                    video.playsInline = true;
+                    video.setAttribute('playsinline', '');
+                    video.setAttribute('webkit-playsinline', '');
+                    
+                    // Attempt to play
+                    const playPromise = video.play();
+                    
+                    if (playPromise !== undefined) {
+                        await playPromise;
+                        console.log('Video playing successfully:', video.src);
+                    }
+                } catch (error) {
+                    console.log('Auto-play failed for video:', video.src, error);
+                    
+                    // Fallback: try again after a short delay
+                    setTimeout(() => {
+                        video.play().catch(() => {
+                            console.log('Delayed play also failed for:', video.src);
+                        });
+                    }, 100);
+                }
+            }
+            
+            // Function to handle video when it becomes visible
+            function handleVideoVisibility(entries, observer) {
+                entries.forEach(entry => {
+                    const video = entry.target;
+                    
+                    if (entry.isIntersecting) {
+                        // Video is visible, try to play
+                        playVideo(video);
+                    } else {
+                        // Video is not visible, pause to save resources
+                        video.pause();
+                    }
+                });
+            }
+            
+            // Initialize Intersection Observer
+            function setupIntersectionObserver() {
+                const observerOptions = {
+                    threshold: 0.25, // Play when 25% of video is visible
+                    rootMargin: '50px' // Start playing 50px before entering viewport
+                };
+                
+                const observer = new IntersectionObserver(handleVideoVisibility, observerOptions);
+                return observer;
+            }
+            
+            // Function to initialize all videos
+            function initializeVideos() {
+                // Get all video elements
+                const videos = document.querySelectorAll('video');
+                
+                if (videos.length === 0) {
+                    console.log('No video elements found');
+                    return;
+                }
+                
+                const observer = setupIntersectionObserver();
+                
+                videos.forEach((video, index) => {
+                    console.log(`Initializing video ${index + 1}:`, video.src);
+                    
+                    // Set required attributes for iOS Safari
+                    video.muted = true;
+                    video.playsInline = true;
+                    video.setAttribute('playsinline', '');
+                    video.setAttribute('webkit-playsinline', '');
+                    
+                    // Add loading event listener
+                    video.addEventListener('loadedmetadata', () => {
+                        console.log('Video metadata loaded:', video.src);
+                        
+                        // For iOS Safari, try to play immediately
+                        if (isIOSSafari) {
+                            playVideo(video);
+                        }
+                    });
+                    
+                    // Add error handling
+                    video.addEventListener('error', (e) => {
+                        console.error('Video error:', video.src, e);
+                    });
+                    
+                    // Observe video for intersection
+                    observer.observe(video);
+                    
+                    // For non-iOS or if video is already in viewport, try to play immediately
+                    if (!isIOSSafari || isVideoInViewport(video)) {
+                        playVideo(video);
+                    }
+                });
+            }
+            
+            // Helper function to check if video is in viewport
+            function isVideoInViewport(video) {
+                const rect = video.getBoundingClientRect();
+                return (
+                    rect.top >= 0 &&
+                    rect.left >= 0 &&
+                    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+                );
+            }
+            
+            // User interaction fallback for iOS Safari
+            function enableUserInteractionFallback() {
+                let userHasInteracted = false;
+                
+                const interactionEvents = ['touchstart', 'touchend', 'click', 'scroll'];
+                
+                function handleUserInteraction() {
+                    if (userHasInteracted) return;
+                    
+                    userHasInteracted = true;
+                    console.log('User interaction detected, attempting to play all videos');
+                    
+                    // Try to play all videos after user interaction
+                    document.querySelectorAll('video').forEach(playVideo);
+                    
+                    // Remove event listeners after first interaction
+                    interactionEvents.forEach(event => {
+                        document.removeEventListener(event, handleUserInteraction);
+                    });
+                }
+                
+                // Add interaction listeners
+                interactionEvents.forEach(event => {
+                    document.addEventListener(event, handleUserInteraction, { passive: true });
+                });
+            }
+            
+            // Low Power Mode detection and handling for iOS
+            function handleLowPowerMode() {
+                // Check for Low Power Mode indicators
+                const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                
+                if (connection && connection.saveData) {
+                    console.log('Data Saver mode detected, videos may not autoplay');
+                }
+                
+                // Monitor battery status if available
+                if ('getBattery' in navigator) {
+                    navigator.getBattery().then(battery => {
+                        if (battery.level < 0.2) {
+                            console.log('Low battery detected, videos may not autoplay');
+                        }
+                    });
+                }
+            }
+            
+            // Main initialization function
+            function init() {
+                console.log('iOS Safari Video Handler initialized');
+                console.log('Is iOS Safari:', isIOSSafari);
+                
+                // Handle Low Power Mode
+                handleLowPowerMode();
+                
+                // Enable user interaction fallback for iOS
+                if (isIOSSafari) {
+                    enableUserInteractionFallback();
+                }
+                
+                // Initialize videos when DOM is ready
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', initializeVideos);
                 } else {
-                // Pause when scrolled out
-                video.pause();
+                    // DOM already loaded
+                    initializeVideos();
                 }
-            });
-            }, { threshold: 0.1 });
-
-            videos.forEach(v => io.observe(v));
-
-            // Initial attempt once DOM is ready and visible
-            requestAnimationFrame(() => videos.forEach(tryPlay));
-
-            // Resume attempts on visibility change (e.g., tab foregrounded)
-            document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                videos.forEach(tryPlay);
-            } else {
-                videos.forEach(v => v.pause());
             }
-            });
-
-            // One-time user gesture fallback (covers user setting “autoplay off” or low power mode)
-            const userKick = () => {
-            videos.forEach(tryPlay);
-            window.removeEventListener('touchend', userKick);
-            window.removeEventListener('click', userKick);
-            window.removeEventListener('keydown', userKick);
-            window.removeEventListener('scroll', userKick);
-            };
-            window.addEventListener('touchend', userKick, { passive: true, once: false });
-            window.addEventListener('click', userKick, { passive: true, once: false });
-            window.addEventListener('keydown', userKick, { passive: true, once: false });
-            window.addEventListener('scroll', userKick, { passive: true, once: false });
-
-            // If a source is swapped later, re-prepare and retry
-            videos.forEach(v => {
-            v.addEventListener('loadeddata', () => tryPlay(v), { passive: true });
-            });
-        }
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init, { once: true });
-        } else {
+            
+            // Start initialization
             init();
-        }
+            
+            // Additional method for manual triggering
+            window.forcePlayVideos = function() {
+                console.log('Manually triggering video playback');
+                document.querySelectorAll('video').forEach(playVideo);
+            };
+            
         })();
+
     </script>
 
 
