@@ -192,7 +192,7 @@
         }
 
         /* Hero Section - Modified for perfume (no right container) */
-        /* Hero Section - Modified for perfume (no right container) */
+        /* Hero Section */
         .hero-container {
             position: relative;
             width: 100%;
@@ -203,15 +203,19 @@
             justify-content: center;
         }
 
+        /* YouTube iframe styling */
         #hero-video {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100vh;
-            object-fit: cover;
+            top: 50%;
+            left: 50%;
+            width: 100vw;
+            height: 56.25vw; /* 16:9 aspect ratio */
+            min-height: 100vh;
+            min-width: 177.77vh; /* 16:9 aspect ratio */
+            transform: translate(-50%, -50%);
             z-index: 1;
-            
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
         }
 
         /* Video is ready and playing */
@@ -219,6 +223,7 @@
             opacity: 1;
         }
 
+        /* Fallback image */
         .hero-fallback {
             position: absolute;
             top: 0;
@@ -236,29 +241,10 @@
             pointer-events: none;
         }
 
-        .hero-play-button {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 4;
-            background: rgba(0, 0, 0, 0.7);
-            border: 2px solid white;
-            border-radius: 50%;
-            width: 80px;
-            height: 80px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+        /* Remove play button styles since we don't need them */
+        /* .hero-play-button styles can be deleted */
 
-        .hero-play-button:hover {
-            background: rgba(0, 0, 0, 0.9);
-            transform: translate(-50%, -50%) scale(1.1);
-        }
-
+        /* Hero content */
         .hero-content {
             position: relative;
             z-index: 3;
@@ -272,7 +258,7 @@
             transform: translateY(30px);
             
             /* Animation */
-            animation: heroContentEnter 1s ease-out 4s forwards;
+            animation: heroContentEnter 1s ease-out 2s forwards;
         }
 
         @keyframes heroContentEnter {
@@ -288,9 +274,19 @@
 
         /* Individual element delays for staggered effect */
         .hero-content h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
             opacity: 0;
             transform: translateY(20px);
             animation: slideUp 0.8s ease-out 3.2s forwards;
+        }
+
+        .hero-content p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: slideUp 0.8s ease-out 3.5s forwards;
         }
 
         .hero-content .cta-button {
@@ -310,7 +306,6 @@
             }
         }
 
-
         .cta-button {
             background: #ff6b6b;
             color: white;
@@ -329,12 +324,15 @@
         /* Mobile optimizations */
         @media (max-width: 768px) {
             .hero-container {
-                height: 80vh;
+                height: 100vh;
             }
             
-            .hero-play-button {
-                width: 60px;
-                height: 60px;
+            .hero-content h1 {
+                font-size: 2rem;
+            }
+            
+            .hero-content p {
+                font-size: 1rem;
             }
         }
 
@@ -1978,11 +1976,8 @@
    
 
     <!-- Hero Section -->
-        <!-- Hero Section -->
     <div class="hero-container">
-        
-        
-        <!-- Fallback poster image -->
+        <!-- Fallback poster image (shows while YouTube loads) -->
         <img 
             src="hero-4.jpeg" 
             alt="Hero background"
@@ -1990,17 +1985,21 @@
             loading="eager"
         >
         
+        <!-- YouTube iframe with autoplay and no controls -->
+        <iframe 
+            id="hero-video"
+            src="https://www.youtube.com/embed/fMpV-8bVJIg?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=fMpV-8bVJIg&modestbranding=1&playsinline=1&disablekb=1&fs=0"
+            title="Hero video"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen>
+        </iframe>
         
-        
-        <!-- Your hero content -->
+        <!-- Hero content -->
         <div class="hero-content">
-            <video autoplay loop muted playsinline>
-                <source src="hero-4.mp4" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
-            
-            
-            
+            <h1>Your Hero Title</h1>
+            <p>Your compelling subtitle or description</p>
+            <button class="cta-button">Get Started</button>
         </div>
     </div>
 
@@ -2939,6 +2938,27 @@
                 }
             });
         }
+
+    </script>
+
+    <script>
+        // Handle YouTube iframe loading
+        const iframe = document.getElementById('hero-video');
+        const fallback = document.querySelector('.hero-fallback');
+
+        // Hide fallback after iframe loads
+        iframe.addEventListener('load', () => {
+            setTimeout(() => {
+                iframe.classList.add('loaded');
+                fallback.classList.add('hidden');
+            }, 1000); // Small delay to ensure video starts playing
+        });
+
+        // Fallback timeout in case load event doesn't fire
+        setTimeout(() => {
+            iframe.classList.add('loaded');
+            fallback.classList.add('hidden');
+        }, 3000);
 
     </script>
 
